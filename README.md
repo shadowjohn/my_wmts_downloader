@@ -60,6 +60,18 @@ https://c.tile.openstreetmap.org/{TileMatrix}/{TileCol}/{TileRow}.png
 </tr>
 <tr>
     <td>6</td>
+    <td>START_LEVEL</td>
+    <td>開始的 Zoom Level 如 0</td>
+    <td>0</td>
+</tr>
+<tr>
+    <td>7</td>
+    <td>END_LEVEL</td>
+    <td>結束的 Zoom Level 如 15</td>
+    <td>15</td>
+</tr>
+<tr>
+    <td>8</td>
     <td>OUTPUT_PATH</td>
     <td>輸出目錄，會自動建立 Z/X/Y.jpg</td>
     <td>如：C:\temp\osm</td>
