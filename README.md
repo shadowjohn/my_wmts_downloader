@@ -13,7 +13,7 @@ MIT
 
 <h2>程式執行</h2>
 
-wmts_to_jpg.exe -url [WMTS URL] -ltx [LT_X] -lty [LT_Y] -rbx [RB_X] -rby [RB_Y] -sz [START_LEVEL] -ez [END_LEVEL] -f [FILE_FORMAT] -o [OUTPUT_PATH, OUTPUT_ZIP, OUTPUT_DB]
+wmts_to_jpg.exe -url [WMTS URL] -ltx [LT_X] -lty [LT_Y] -rbx [RB_X] -rby [RB_Y] -sz [START_LEVEL] -ez [END_LEVEL] -f [FILE_FORMAT] -o [OUTPUT_PATH, OUTPUT_ZIP, OUTPUT_SQLITE]
 
 <h2>使用方法</h2>
 
@@ -80,16 +80,28 @@ https://c.tile.openstreetmap.org/{TileMatrix}/{TileCol}/{TileRow}.png
     <td>
 		DIR [目錄與檔案]<br>
 		ZIP [壓縮檔 ZIP<br>
-		SQLITE [SQLite DB]<br>		
+		SQLITE [SQLite Database]<br>		
 	</td>
 </tr>
 <tr>
     <td>9</td>
-    <td>OUTPUT_PATH、OUTPUT_ZIP、OUTPUT_DB</td>
+    <td>-thread 多執行緒</td>
+    <td>
+		如： -thread 5
+	</td>
+    <td>
+		如：C:\temp\osm<br>
+		如：C:\temp\osm.zip<br>
+		如：C:\temp\osm.db<br>
+	</td>
+</tr>
+<tr>
+    <td>10</td>
+    <td>-o OUTPUT_PATH、OUTPUT_ZIP、OUTPUT_SQLITE</td>
     <td>
 		輸出目錄：建立目錄，裡面包含 Z/X/Y.jpg<br>
 		輸出ZIP(.zip)檔：輸出壓縮檔 zip，裡面為：Z/X/Y.jpg<br>
-		輸出DB(.db, .sqlite)檔：輸出SQLite 檔，裡面為 z, x, y, tile_data
+		輸出DB(.db, .sqlite)檔：輸出SQLite 檔，裡面為 資料表名：`tiles` 欄位：z, x, y, tile_data (blob)
 	</td>
     <td>
 		如：C:\temp\osm<br>
@@ -109,15 +121,27 @@ wmts_downloader.exe
   wmts_downloader.exe test 
   test 模式，會嘗試下載 osm 台中市範圍 0~15 階，檔案輸出至 "C:\\temp\\output_osm"
   
-  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=B5000" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR "C:\\temp\\B5000"
-  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f ZIP "C:\\temp\\B5000.zip"
-  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f SQLITE "C:\\temp\\B5000.db"
-  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR "C:\\temp\\B5000"
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR "C:\\temp\\B5000"
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f DIR "C:\\temp\\osm"
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f ZIP "C:\\temp\\osm.zip"
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f SQLITE "C:\\temp\\osm.db"
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f SQLITE "C:\\temp\\osm.sqlite"
+  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=B5000" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR -o "C:\\temp\\B5000"
+  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f ZIP -o "C:\\temp\\B5000.zip"
+  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f SQLITE -o "C:\\temp\\B5000.db"
+  wmts_downloader.exe -url "https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR -o "C:\\temp\\B5000"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "289115.13" -lty "2605063.03" -rbx "291660.12" -rby "2602287.44" -sz 0 -ez 15 -f DIR -o "C:\\temp\\B5000"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f DIR -o "C:\\temp\\osm"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f ZIP -o "C:\\temp\\osm.zip"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f SQLITE -o "C:\\temp\\osm.db"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f SQLITE -o "C:\\temp\\osm.sqlite"
+  
+  臺灣範圍
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "120.042" -lty "25.387" -rbx "122.030" -rby "21.785" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
+  
+  金門
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "118.174" -lty "24.560" -rbx "118.527" -rby "24.319" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
+
+  澎湖
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.262" -lty "23.826" -rbx "119.778" -rby "23.157" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
+  
+  馬祖、連江
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.87" -lty "26.291" -rbx "120.049" -rby "26.133" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
 
 <h2>設定檔參數：</h2>
 wmts_to_jpg.exe.config
@@ -138,6 +162,6 @@ wmts_to_jpg.exe.config
     <br>    
     <br>    
   </center>
-<h2>Todo：</h2>
-  1. 可指定輸出 SQLITE 或 ZIP
-  2. 可多執行緒執行
+<h2>ChangeLog：</h2>
+  (2025-03-30) 1. 可指定輸出 SQLITE 或 ZIP
+  (2025-03-30) 2. 可多執行緒執行

@@ -1,17 +1,20 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Net;
 using utility;
 using wmts_downloader.App_Code;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace wmts_downloader
 {
     public class Program
     {
+        public string VERSION = "0.02";
         public myinclude my = new myinclude();
-        //輸出暫存的目錄
-        public string TMP_PATH = "";
+
         public App app = null;
         //WMTS 網址
         public string URL = "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png";
@@ -37,17 +40,34 @@ namespace wmts_downloader
         //結束 END_LEVEL
         public int END_LEVEL = 15;
 
-        //輸出目錄
+        //輸出格式
+        public string FORMAT = "DIR";
+
+        //輸出目錄或檔案
         public string OUTPUT_PATH = "C:\\temp\\output_osm";
+
+        //zip 物件
+        public myZip zip = null;
+
+        // thread 同時下載數量
+        public int THREAD_workers = 1;
+
+        //sqlite 物件
+        public Microsoft.Data.Sqlite.SqliteConnection pdodb = null;
+
         public string MESSAGE = @"
 Usage :
-  wmts_downloader.exe ""URL"" ""LT_X"" ""LT_Y"" ""RB_X"" ""RB_Y"" ""START_LEVEL"" ""END_LEVEL"" ""OUTPUT_PATH""
+  wmts_downloader.exe -url ""URL"" -ltx ""LT_X"" -lty ""LT_Y"" -rbx ""RB_X"" -rby ""RB_Y"" -sz ""START_LEVEL"" -ez ""END_LEVEL"" -f DIR -thread 1 -o ""OUTPUT_PATH""
   wmts_downloader.exe test
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts?layer=B5000"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 0 15 ""C:\\temp\\B5000""
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 0 15 ""C:\\temp\\TOPO50K_109"" 
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 1 15 ""C:\\temp\\B5000"" 
-  wmts_downloader.exe ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 1 15 ""C:\\temp\\osm"" 
-  wmts_downloader.exe ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" ""121.383"" ""23.548"" ""121.408"" ""23.523"" 1 15 ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=B5000"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\B5000""
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\TOPO50K_109"" 
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\B5000"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+
+  # 全臺範圍
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -thread 5 -f ZIP -o ""C:\\temp\\osm.zip""
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -f SQLITE -o ""C:\\temp\\osm.db""
 ";
 
         static void Main(string[] args)
@@ -55,12 +75,7 @@ Usage :
             ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
             Program F1 = new Program();
-            //輸出暫存的目錄
-            F1.TMP_PATH = F1.my.getSystemKey("tmp_path");
-            if (!F1.my.is_dir(F1.TMP_PATH))
-            {
-                F1.my.mkdir(F1.TMP_PATH);
-            }
+
             //preset
             F1.p3826["LT_X"] = 289115.13;
             F1.p3826["LT_Y"] = 2602287.44;
@@ -87,11 +102,29 @@ Usage :
                 d["LT_Y"] = F1.ptile["LT_Y"];
                 d["HOW_MARY_X"] = (F1.ptile["RB_X"] - F1.ptile["LT_X"]) + 1;
                 d["HOW_MARY_Y"] = (F1.ptile["RB_Y"] - F1.ptile["LT_Y"]) + 1;
+
+                // Z 如果小於 10 可以多抓一些範圍
+                if (z >= 6 && z < 10)
+                {
+
+                    d["LT_Y"] -= 1;
+                    d["LT_X"] -= 1;
+                    d["RB_Y"] += 1;
+                    d["RB_X"] += 1;
+                    // 不能小於 0
+                    if (d["LT_X"] < 0) d["LT_X"] = 0;
+                    if (d["LT_Y"] < 0) d["LT_Y"] = 0;
+                    d["HOW_MARY_X"] = (d["RB_X"] - d["LT_X"]) + 1;
+                    d["HOW_MARY_Y"] = (d["RB_Y"] - d["LT_Y"]) + 1;
+                }
+
+
                 d["TOTAL_PICS"] = (d["HOW_MARY_X"] * d["HOW_MARY_Y"]);
                 F1.how_many_z[z] = d;
                 F1.total_pics += d["TOTAL_PICS"];
             }
-
+            //F1.my.echo(F1.my.json_encode(F1.how_many_z));
+            //F1.my.exit();
             //面積不能過大
             //utility.PointF[] p = F1.my.p3826_to_pointf(F1.p3826);
             //F1.AREA = F1.my.area_of_polygon(p);
@@ -107,11 +140,47 @@ Usage :
             F1.my.echo("共幾張：" + F1.total_pics);
             F1.my.echo("");
             //開始下載
-            F1.my.echo("圖資暫存位置：" + F1.TMP_PATH);
+            switch (F1.FORMAT)
+            {
+                case "DIR":
+                    if (!F1.my.is_dir(F1.OUTPUT_PATH))
+                    {
+                        F1.my.mkdir(F1.OUTPUT_PATH);
+                    }
+                    break;
+                case "ZIP":
+                    F1.zip = new myZip(F1.OUTPUT_PATH);
+                    break;
+                case "SQLITE":
+                    F1.pdodb = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + F1.OUTPUT_PATH);
+                    // 啟動
+                    F1.pdodb.Open();
+                    break;
+            }
+
             if (!F1.app.downloadTiles())
             {
                 F1.my.echo("執行失敗...");
+                switch (F1.FORMAT)
+                {
+                    case "ZIP":
+                        F1.zip.Dispose();
+                        break;
+                    case "SQLITE":
+                        F1.pdodb.Close();
+                        break;
+                }
                 F1.my.exit();
+            }
+            switch (F1.FORMAT)
+            {
+                case "ZIP":
+                    F1.zip.Dispose();
+                    break;
+                case "SQLITE":
+                    F1.pdodb.Close();
+                    F1.pdodb.Dispose();
+                    break;
             }
             F1.my.echo("輸出檔案：" + F1.OUTPUT_PATH);
             F1.my.echo("工作完成...");
