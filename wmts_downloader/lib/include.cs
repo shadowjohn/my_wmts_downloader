@@ -489,6 +489,11 @@ namespace utility
         {
             return Regex.Unescape(input);
         }
+        public string json_format(string input)
+        {
+            JArray jdod = json_decode(input);
+            return EscapeUnicode(JsonConvert.SerializeObject(jdod, Formatting.Indented));
+        }
         public string json_encode(object input)
         {
             return EscapeUnicode(JsonConvert.SerializeObject(input, Formatting.None));
@@ -851,14 +856,20 @@ namespace utility
         }
         public Dictionary<string, int> getTileFromLongLat(int Zoom, double lon, double lat)
         {
-            //某個經緯度在哪個圖磚            
-            double pi = Math.PI;
-            Dictionary<string, int> Tile = new Dictionary<string, int>();
-            Tile["Zoom"] = Zoom;
-            double ZoomLevelTiles = 1 << Zoom;
-            Tile["X"] = Convert.ToInt32((Math.Floor((lon + 180.0) / 360.0 * ZoomLevelTiles)));
-            Tile["Y"] = Convert.ToInt32((Math.Floor((1.0 - Math.Log(Math.Tan(lat * pi / 180.0) + 1.0 / Math.Cos(lat * pi / 180.0)) / pi) / 2.0 * ZoomLevelTiles)));
-            return Tile;
+            const double pi = Math.PI;
+
+            // 限制緯度範圍，以符合 Web Mercator
+            lat = Math.Max(-85.05112878, Math.Min(85.05112878, lat));
+
+            int ZoomLevelTiles = 1 << Zoom;  // 等同於 Math.Pow(2, Zoom)，但位元運算效能較佳
+            int x = (int)Math.Floor((lon + 180.0) / 360.0 * ZoomLevelTiles);
+            int y = (int)Math.Floor((1.0 - Math.Log(Math.Tan(lat * pi / 180.0) + 1.0 / Math.Cos(lat * pi / 180.0)) / pi) / 2.0 * ZoomLevelTiles);            
+            return new Dictionary<string, int>
+                {
+                    { "Zoom", Zoom },
+                    { "X", x },
+                    { "Y", y }
+                };
         }
         public Dictionary<string, int> p4326_to_ptile(int Zoom, Dictionary<string, double> p4326)
         {
@@ -1126,7 +1137,7 @@ namespace utility
                 HttpRequestCachePolicy noCachePolicy = new HttpRequestCachePolicy(HttpRequestCacheLevel.NoCacheNoStore);
                 request.CachePolicy = noCachePolicy;
                 request.CookieContainer = (CookieContainer)output["cookies"];
-                
+
                 request.UserAgent = _userAgent;
 
 

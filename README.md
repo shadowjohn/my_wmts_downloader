@@ -132,16 +132,16 @@ wmts_downloader.exe
   wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "121.383" -lty "23.548" -rbx "121.408" -rby "23.523" -sz 0 -ez 15 -f SQLITE -o "C:\\temp\\osm.sqlite"
   
   臺灣範圍
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "120.042" -lty "25.387" -rbx "122.030" -rby "21.785" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "120.042" -lty "21.785" -rbx "122.030" -rby "25.387" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
   
   金門
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "118.174" -lty "24.560" -rbx "118.527" -rby "24.319" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "118.174" -lty "24.319" -rbx "118.527" -rby "24.560" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"
 
   澎湖
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.262" -lty "23.826" -rbx "119.778" -rby "23.157" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.262" -lty "23.157" -rbx "119.778" -rby "23.826" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
   
   馬祖、連江
-  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.87" -lty "26.291" -rbx "120.049" -rby "26.133" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
+  wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.87" -lty "26.133" -rbx "120.049" -rby "26.291" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
 
 <h2>設定檔參數：</h2>
 wmts_to_jpg.exe.config

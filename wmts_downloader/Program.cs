@@ -61,13 +61,13 @@ Usage :
   wmts_downloader.exe test
   wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=B5000"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\B5000""
   wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\TOPO50K_109"" 
-  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\B5000"" 
-  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\B5000"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
 
   # 全臺範圍
-  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
-  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -thread 5 -f ZIP -o ""C:\\temp\\osm.zip""
-  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""121.383"" -lty ""23.548"" -rbx ""121.408"" -rby ""23.523"" -sz 1 -ez 15 -f SQLITE -o ""C:\\temp\\osm.db""
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -thread 5 -f ZIP -o ""C:\\temp\\osm.zip""
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -f SQLITE -o ""C:\\temp\\osm.db""
 ";
 
         static void Main(string[] args)

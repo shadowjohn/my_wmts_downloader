@@ -141,7 +141,7 @@ namespace wmts_downloader.App_Code
                 case "SQLITE":
                     // 檢查是否已存在，如果有的話，要檢查是否 sqlite 格式
                     {
-                        if (!theform.my.is_file(theform.OUTPUT_PATH))
+                        if (theform.my.is_file(theform.OUTPUT_PATH))
                         {
                             if (!theform.my.is_sqlite(theform.OUTPUT_PATH))
                             {
@@ -281,8 +281,8 @@ namespace wmts_downloader.App_Code
                     {
                         if (z < 10)
                         {
-                            if (processedZ_Y_X.Contains($"{z}-{y}-{x}")) continue;
-                            processedZ_Y_X.Add($"{z}-{y}-{x}");
+                            if (processedZ_Y_X.Contains($"{z}-{x}-{y}")) continue;
+                            processedZ_Y_X.Add($"{z}-{x}-{y}");
                         }
 
                         // 限制同時下載數量
@@ -303,8 +303,8 @@ namespace wmts_downloader.App_Code
                                 {
                                     case "DIR":
                                         {
-                                            string OPMN = $"{dn}\\{z}\\{y}\\{x}.jpg";
-                                            string OPDN = $"{dn}\\{z}\\{y}";
+                                            string OPMN = $"{dn}\\{z}\\{x}\\{y}.jpg";
+                                            string OPDN = $"{dn}\\{z}\\{x}";
 
                                             if (!theform.my.is_dir(OPDN))
                                             {
@@ -331,7 +331,7 @@ namespace wmts_downloader.App_Code
                                     case "ZIP":
                                         {
                                             theform.my.echo($"LEVEL: {z}/{theform.END_LEVEL}, ({step} / {theform.total_pics}): {_URL}");
-                                            string op = $"{z}/{y}/{x}.jpg";
+                                            string op = $"{z}/{x}/{y}.jpg";
                                             if (theform.zip.IsFile(op)) return;
                                             try
                                             {
