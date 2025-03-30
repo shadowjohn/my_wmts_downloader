@@ -143,10 +143,6 @@ wmts_downloader.exe
   馬祖、連江
   wmts_downloader.exe -url "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png" -ltx "119.87" -lty "26.133" -rbx "120.049" -rby "26.291" -sz 0 -ez 15 -f ZIP -thread 5 -o "C:\\temp\\osm.zip"  
 
-<h2>設定檔參數：</h2>
-wmts_to_jpg.exe.config
-
-    
 <h2>縮圖參考：</h2>
   <center>
     <img src="screenshot/01.png">
