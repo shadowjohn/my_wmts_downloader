@@ -976,7 +976,28 @@ namespace utility
                     }
                     using (var reader = command.ExecuteReader())
                     {
-                        dt.Load(reader);
+                        // 手動建立欄位結構
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            dt.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
+                        }
+                        // 手動逐行填充資料
+                        while (reader.Read())
+                        {
+                            DataRow row = dt.NewRow();
+                            for (int i = 0; i < reader.FieldCount; i++)
+                            {
+                                if (reader.IsDBNull(i))
+                                {
+                                    row[i] = DBNull.Value;
+                                }
+                                else
+                                {
+                                    row[i] = reader.GetValue(i);
+                                }
+                            }
+                            dt.Rows.Add(row);
+                        }
                     }
                 }
             }
@@ -1022,7 +1043,32 @@ namespace utility
                 }
                 using (var reader = command.ExecuteReader())
                 {
-                    dt.Load(reader);
+                    // 不能寫 
+                    // dt.Load(reader);
+                    // 會非常慢
+
+                    // 手動建立欄位結構
+                    for (int i = 0; i < reader.FieldCount; i++)
+                    {
+                        dt.Columns.Add(reader.GetName(i), reader.GetFieldType(i));
+                    }
+                    // 手動逐行填充資料
+                    while (reader.Read())
+                    {
+                        DataRow row = dt.NewRow();
+                        for (int i = 0; i < reader.FieldCount; i++)
+                        {
+                            if (reader.IsDBNull(i))
+                            {
+                                row[i] = DBNull.Value;
+                            }
+                            else
+                            {
+                                row[i] = reader.GetValue(i);
+                            }
+                        }
+                        dt.Rows.Add(row);
+                    }
                 }
             }
             return dt;
