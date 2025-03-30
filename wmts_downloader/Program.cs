@@ -9,9 +9,7 @@ namespace wmts_downloader
 {
     public class Program
     {
-        public myinclude my = new myinclude();
-        //輸出暫存的目錄
-        public string TMP_PATH = "";
+        public myinclude my = new myinclude();        
         public App app = null;
         //WMTS 網址
         public string URL = "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png";
@@ -70,13 +68,7 @@ Usage :
         {
             ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-            Program F1 = new Program();
-            //輸出暫存的目錄
-            F1.TMP_PATH = F1.my.getSystemKey("tmp_path");
-            if (!F1.my.is_dir(F1.TMP_PATH))
-            {
-                F1.my.mkdir(F1.TMP_PATH);
-            }
+            Program F1 = new Program();                        
             //preset
             F1.p3826["LT_X"] = 289115.13;
             F1.p3826["LT_Y"] = 2602287.44;
@@ -122,9 +114,7 @@ Usage :
             F1.my.echo(F1.my.json_encode(F1.how_many_z));
             F1.my.echo("共幾張：" + F1.total_pics);
             F1.my.echo("");
-            //開始下載
-            F1.my.echo("圖資暫存位置：" + F1.TMP_PATH);
-
+            
             // 看是什麼類型
             switch (F1.FORMAT)
             {
@@ -144,6 +134,7 @@ Usage :
                     break;
             }
 
+            //開始下載            
             if (!F1.app.downloadTiles())
             {
                 F1.my.echo("執行失敗...");
