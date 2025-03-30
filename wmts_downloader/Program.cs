@@ -37,17 +37,33 @@ namespace wmts_downloader
         //結束 END_LEVEL
         public int END_LEVEL = 15;
 
+        //輸出格式 FORMAT
+        public string FORMAT = "DIR";
+
+        //工作人
+        public int THREAD_workers = 1;
+
+        //zip 物件
+        public myZip zip = null;
+        
+        //sqlite 物件
+        public Microsoft.Data.Sqlite.SqliteConnection pdodb = null;
+
         //輸出目錄
         public string OUTPUT_PATH = "C:\\temp\\output_osm";
         public string MESSAGE = @"
 Usage :
-  wmts_downloader.exe ""URL"" ""LT_X"" ""LT_Y"" ""RB_X"" ""RB_Y"" ""START_LEVEL"" ""END_LEVEL"" ""OUTPUT_PATH""
+  wmts_downloader.exe -url ""URL"" -ltx ""LT_X"" -lty ""LT_Y"" -rbx ""RB_X"" -rby ""RB_Y"" -sz ""START_LEVEL"" -ez ""END_LEVEL"" -f DIR -thread 1 -o ""OUTPUT_PATH""
   wmts_downloader.exe test
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts?layer=B5000"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 0 15 ""C:\\temp\\B5000""
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 0 15 ""C:\\temp\\TOPO50K_109"" 
-  wmts_downloader.exe ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 1 15 ""C:\\temp\\B5000"" 
-  wmts_downloader.exe ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" ""289115.13"" ""2605063.03"" ""291660.12"" ""2602287.44"" 1 15 ""C:\\temp\\osm"" 
-  wmts_downloader.exe ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" ""121.383"" ""23.548"" ""121.408"" ""23.523"" 1 15 ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=B5000"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\B5000""
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts?layer=TOPO50K_109"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\TOPO50K_109"" 
+  wmts_downloader.exe -url ""https://wmts.nlsc.gov.tw/wmts/B5000/{Style}/{TileMatrixSet}/{TileMatrix}/{TileRow}/{TileCol}"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\B5000"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""289115.13"" -lty ""2605063.03"" -rbx ""291660.12"" -rby ""2602287.44"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+
+  # 全臺範圍
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -f DIR -o ""C:\\temp\\osm"" 
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -thread 5 -f ZIP -o ""C:\\temp\\osm.zip""
+  wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -f SQLITE -o ""C:\\temp\\osm.db""
 ";
 
         static void Main(string[] args)
@@ -108,6 +124,26 @@ Usage :
             F1.my.echo("");
             //開始下載
             F1.my.echo("圖資暫存位置：" + F1.TMP_PATH);
+
+            // 看是什麼類型
+            switch (F1.FORMAT)
+            {
+                case "DIR":
+                    if (!F1.my.is_dir(F1.OUTPUT_PATH))
+                    {
+                        F1.my.mkdir(F1.OUTPUT_PATH);
+                    }
+                    break;
+                case "ZIP":
+                    F1.zip = new myZip(F1.OUTPUT_PATH);
+                    break;
+                case "SQLITE":
+                    F1.pdodb = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + F1.OUTPUT_PATH);
+                    // 啟動
+                    F1.pdodb.Open();
+                    break;
+            }
+
             if (!F1.app.downloadTiles())
             {
                 F1.my.echo("執行失敗...");

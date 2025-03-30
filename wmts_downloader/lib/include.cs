@@ -19,6 +19,12 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.IO.Compression;
+using System.Net.Http;
+using System.Threading.Tasks;
+using ICSharpCode.SharpZipLib.Zip;
+using System.Linq;
+using System.Net.Cache;
 
 namespace utility
 {
@@ -29,7 +35,8 @@ namespace utility
     }
     public class myinclude
     {
-
+        private Random rnd = new Random(DateTime.Now.Millisecond);
+        public string _userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36";
         public string pwd()
         {
             return Directory.GetCurrentDirectory();
@@ -49,7 +56,10 @@ namespace utility
                 File.Delete(filepath);
             }
         }
-
+        public int rand(int min, int max)
+        {
+            return rnd.Next(min, max);
+        }
         public string b2s(byte[] input)
         {
             return System.Text.Encoding.UTF8.GetString(input);
@@ -88,7 +98,7 @@ namespace utility
             output["cookies"] = new CookieContainer();
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(URL);
             request.CookieContainer = (CookieContainer)output["cookies"];
-            request.UserAgent = "user_agent','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36";
+            request.UserAgent = _userAgent;
             try
             {
 
@@ -163,7 +173,7 @@ namespace utility
             ConcurrentDictionary<string, object> output = new ConcurrentDictionary<string, object>();
             HttpWebRequest request = (HttpWebRequest)WebRequest.Create(URL);
             request.Proxy = null;
-            request.UserAgent = "user_agent','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36";
+            request.UserAgent = _userAgent;
             request.CookieContainer = (CookieContainer)C["cookies"];
             C["cookies"] = request.CookieContainer;
             try
@@ -479,6 +489,11 @@ namespace utility
         {
             return Regex.Unescape(input);
         }
+        public string json_format(string input)
+        {
+            JArray jdod = json_decode(input);
+            return EscapeUnicode(JsonConvert.SerializeObject(jdod, Formatting.Indented));
+        }
         public string json_encode(object input)
         {
             return EscapeUnicode(JsonConvert.SerializeObject(input, Formatting.None));
@@ -572,6 +587,60 @@ namespace utility
                     break;
             }
         }
+        /// Will return the string contents of a
+        /// regular file or the contents of a
+        /// response from a URL
+        /// </summary>
+        /// <param name="fileName">The filename or URL</param>
+        /// <returns></returns>
+        public byte[] file_get_contents_retry(string url, int maxRetries = 3)
+        {
+            if (url.ToLower().IndexOf("http:") == 0 || url.ToLower().IndexOf("https:") == 0)
+            {
+                // URL                 
+                //http://social.msdn.microsoft.com/Forums/en-US/8050d80a-ca45-4b0c-82dc-81dd1eac496f/retry-catch
+                bool redo = false;
+
+                int retries = 0;
+                HttpWebRequest request = null;
+                HttpWebResponse response = null;
+                byte[] byteData = null;
+                do
+                {
+                    try
+                    {
+                        request = (HttpWebRequest)WebRequest.Create(url);
+                        request.Timeout = 30000;
+                        request.Proxy = null;
+                        request.UserAgent = _userAgent;
+                        //request.Referer = getSystemKey("HTTP_REFERER");
+                        response = (HttpWebResponse)request.GetResponse();
+                        Stream stream = response.GetResponseStream();
+                        byteData = ReadStream(stream, 5000);
+                        stream.Close();
+                    }
+                    catch (Exception e)
+                    {
+                        Console.Write(e.Message);
+                        //Console.WriteLine(e.Message);
+                        redo = true;
+                        Thread.Sleep(5);
+                        ++retries;
+                        //myLog("retry..." + retries);
+                    }
+
+                } while (redo && retries < maxRetries);
+                response.Close();
+                return byteData;
+            }
+            else
+            {
+                System.IO.StreamReader sr = new System.IO.StreamReader(url);
+                string sContents = sr.ReadToEnd();
+                sr.Close();
+                return s2b(sContents);
+            }
+        }
         public byte[] file_get_contents(string url)
         {
             if (url.ToLower().IndexOf("http:") > -1 || url.ToLower().IndexOf("https:") > -1)
@@ -586,8 +655,8 @@ namespace utility
                 request = (HttpWebRequest)WebRequest.Create(url);
                 request.Timeout = 60000;
                 request.Proxy = null;
-                request.UserAgent = "user_agent','Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.75 Safari/537.36";
-                //request.Referer = getSystemKey("HTTP_REFERER");
+                request.UserAgent = _userAgent;
+                request.Referer = "http://localhost/gglonglongder";
                 response = (HttpWebResponse)request.GetResponse();
                 Stream stream = response.GetResponseStream();
                 byteData = ReadStream(stream, 32765);
@@ -787,14 +856,20 @@ namespace utility
         }
         public Dictionary<string, int> getTileFromLongLat(int Zoom, double lon, double lat)
         {
-            //某個經緯度在哪個圖磚            
-            double pi = Math.PI;
-            Dictionary<string, int> Tile = new Dictionary<string, int>();
-            Tile["Zoom"] = Zoom;
-            double ZoomLevelTiles = 1 << Zoom;
-            Tile["X"] = Convert.ToInt32((Math.Floor((lon + 180.0) / 360.0 * ZoomLevelTiles)));
-            Tile["Y"] = Convert.ToInt32((Math.Floor((1.0 - Math.Log(Math.Tan(lat * pi / 180.0) + 1.0 / Math.Cos(lat * pi / 180.0)) / pi) / 2.0 * ZoomLevelTiles)));
-            return Tile;
+            const double pi = Math.PI;
+
+            // 限制緯度範圍，以符合 Web Mercator
+            lat = Math.Max(-85.05112878, Math.Min(85.05112878, lat));
+
+            int ZoomLevelTiles = 1 << Zoom;  // 等同於 Math.Pow(2, Zoom)，但位元運算效能較佳
+            int x = (int)Math.Floor((lon + 180.0) / 360.0 * ZoomLevelTiles);
+            int y = (int)Math.Floor((1.0 - Math.Log(Math.Tan(lat * pi / 180.0) + 1.0 / Math.Cos(lat * pi / 180.0)) / pi) / 2.0 * ZoomLevelTiles);
+            return new Dictionary<string, int>
+                {
+                    { "Zoom", Zoom },
+                    { "X", x },
+                    { "Y", y }
+                };
         }
         public Dictionary<string, int> p4326_to_ptile(int Zoom, Dictionary<string, double> p4326)
         {
@@ -846,6 +921,566 @@ namespace utility
             g.DrawImage(imgToResize, 0, 0, destWidth, destHeight);
             g.Dispose();
             return (System.Drawing.Image)b;
+        }
+        public bool is_zip(string filepath)
+        {
+            // 確實用 zip 打開看看是不是
+            // https://stackoverflow.com/questions/7355252/how-to-check-if-a-file-is-a-valid-zip-file
+            try
+            {
+                using (var zip = System.IO.Compression.ZipFile.OpenRead(filepath))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public bool is_sqlite(string filepath)
+        {
+            // 用 Microsoft.Data.Sqlite 去開啟看看是不是
+            // https://stackoverflow.com/questions/394316/using-sqlite-in-c-sharp
+            try
+            {
+                using (var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + filepath))
+                {
+                    connection.Open();
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public DataTable sqliteFile_selectSQL_SAFE(string filepath, string SQL)
+        {
+            Dictionary<string, string> pa = new Dictionary<string, string>();
+            return sqliteFile_selectSQL_SAFE(filepath, SQL, pa);
+        }
+        public DataTable sqliteFile_selectSQL_SAFE(string filepath, string SQL, Dictionary<string, string> pa)
+        {
+            // https://stackoverflow.com/questions/394316/using-sqlite-in-c-sharp
+            DataTable dt = new DataTable();
+            using (var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + filepath))
+            {
+                connection.Open();
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = SQL;
+                    foreach (string key in pa.Keys)
+                    {
+                        command.Parameters.AddWithValue("@" + key, pa[key]);
+                    }
+                    using (var reader = command.ExecuteReader())
+                    {
+                        dt.Load(reader);
+                    }
+                }
+            }
+            return dt;
+        }
+        public bool sqliteFile_execSQL_SAFE(string filepath, string SQL)
+        {
+            Dictionary<string, string> pa = new Dictionary<string, string>();
+            return sqliteFile_execSQL_SAFE(filepath, SQL, pa);
+        }
+        public bool sqliteFile_execSQL_SAFE(string filepath, string SQL, Dictionary<string, string> pa)
+        {
+            // https://stackoverflow.com/questions/394316/using-sqlite-in-c-sharp
+            using (var connection = new Microsoft.Data.Sqlite.SqliteConnection("Data Source=" + filepath))
+            {
+                connection.Open();
+                using (var command = connection.CreateCommand())
+                {
+                    command.CommandText = SQL;
+                    foreach (string key in pa.Keys)
+                    {
+                        command.Parameters.AddWithValue("@" + key, pa[key]);
+                    }
+                    command.ExecuteNonQuery();
+                }
+            }
+            return true;
+        }
+        public DataTable sqlitePDO_selectSQL_SAFE(Microsoft.Data.Sqlite.SqliteConnection pdo, string SQL)
+        {
+            Dictionary<string, string> pa = new Dictionary<string, string>();
+            return sqlitePDO_selectSQL_SAFE(pdo, SQL, pa);
+        }
+        public DataTable sqlitePDO_selectSQL_SAFE(Microsoft.Data.Sqlite.SqliteConnection pdo, string SQL, Dictionary<string, string> pa)
+        {
+            DataTable dt = new DataTable();
+            using (var command = pdo.CreateCommand())
+            {
+                command.CommandText = SQL;
+                foreach (string key in pa.Keys)
+                {
+                    command.Parameters.AddWithValue("@" + key, pa[key]);
+                }
+                using (var reader = command.ExecuteReader())
+                {
+                    dt.Load(reader);
+                }
+            }
+            return dt;
+        }
+        public int sqlitePDO_insertSQL(Microsoft.Data.Sqlite.SqliteConnection pdo, string table, Dictionary<string, object> data)
+        {
+            string SQL = "INSERT INTO `" + table + "`(`";
+            string SQL2 = " VALUES (";
+            foreach (string key in data.Keys)
+            {
+                SQL += key + "`,`";
+                SQL2 += "@" + key + ",";
+            }
+            SQL = SQL.Substring(0, SQL.Length - 2) + ")";
+            SQL2 = SQL2.Substring(0, SQL2.Length - 1) + ")";
+            SQL += SQL2;
+            using (var command = pdo.CreateCommand())
+            {
+                command.CommandText = SQL;
+                foreach (string key in data.Keys)
+                {
+                    command.Parameters.AddWithValue("@" + key, data[key]);
+                }
+                return command.ExecuteNonQuery();
+            }
+        }
+        public ConcurrentDictionary<string, object> curl_getPost_INIT(string URL, Dictionary<string, string> posts, ConcurrentDictionary<string, object> options = null)
+        {
+            ConcurrentDictionary<string, string> p = new ConcurrentDictionary<string, string>();
+            foreach (string k in posts.Keys)
+            {
+                p[k] = posts[k];
+            }
+            return curl_getPost_INIT(URL, p, options);
+        }
+        public ConcurrentDictionary<string, object> curl_getPost_INIT(string URL, ConcurrentDictionary<string, string> posts, ConcurrentDictionary<string, object> options = null)
+        {
+            //NameValueCollection postParameters = new NameValueCollection();
+            List<string> mPostData = new List<string>();
+            int step = 0;
+            List<Dictionary<string, string>> upfiles = new List<Dictionary<string, string>>();
+            if (posts != null)
+            {
+                foreach (string k in posts.Keys)
+                {
+                    //postParameters.Add(k, posts[k]);                
+                    if (posts[k].Length > 0 && posts[k].Substring(0, 1) == "@" && is_file(posts[k].Substring(1, posts[k].Length - 1)))
+                    {
+                        //file_put_contents("C:\\temp\\a.txt", posts[k].Substring(1, posts[k].Length - 1));
+                        //這是檔案
+                        var d = new Dictionary<string, string>();
+                        d[post_encode_string(k)] = posts[k].Substring(1, posts[k].Length - 1);
+                        upfiles.Add(d);
+                    }
+                    else
+                    {
+                        mPostData.Add(post_encode_string(k) + "=" + post_encode_string(posts[k]));
+                    }
+                    step++;
+
+                }
+            }
+            upfiles = (upfiles.Count == 0) ? null : upfiles;
+            return curl_getPost_INIT(URL, implode("&", mPostData), upfiles, options);
+        }
+        public string implode(string keyword, List<string> arrays)
+        {
+            return string.Join<string>(keyword, arrays);
+        }
+        private string post_encode_string(string value)
+        {
+            /*int limit = 2000;
+
+            StringBuilder sb = new StringBuilder();
+            int loops = value.Length / limit;
+
+            for (int i = 0; i <= loops; i++)
+            {
+                if (i < loops)
+                {
+                    sb.Append(Uri.EscapeDataString(value.Substring(limit * i, limit)));
+                }
+                else
+                {
+                    sb.Append(Uri.EscapeDataString(value.Substring(limit * i)));
+                }
+            }
+            //Uri.EscapeDataString()
+            return sb.ToString();
+            */
+            return Uri.EscapeDataString(value);
+        }
+        public string post_decode_string(string value)
+        {
+            return Uri.UnescapeDataString(value);
+        }
+        public ConcurrentDictionary<string, object> curl_getPost_INIT(string URL, string postData, List<Dictionary<string, string>> upfiles, ConcurrentDictionary<string, object> options = null)
+        {
+            // ConcurrentDictionary<string, object> options = new ConcurrentDictionary<string, object>();
+            // ConcurrentDictionary<string, string> headers = new ConcurrentDictionary<string, string>();
+            // options["headers"] = headers;
+            //file_put_contents("C:\\temp\\a.txt", postData);
+            //From : https://stackoverflow.com/questions/2972643/how-to-use-cookies-with-httpwebrequest
+            ConcurrentDictionary<string, object> output = new ConcurrentDictionary<string, object>();
+            output["cookies"] = new CookieContainer();
+
+            //Uri U = null;
+            try
+            {
+                //U = new Uri(URL);
+                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(URL);
+                HttpRequestCachePolicy noCachePolicy = new HttpRequestCachePolicy(HttpRequestCacheLevel.NoCacheNoStore);
+                request.CachePolicy = noCachePolicy;
+                request.CookieContainer = (CookieContainer)output["cookies"];
+
+                request.UserAgent = _userAgent;
+
+
+
+                if (options != null)
+                {
+                    if (options.ContainsKey("login_id") && options.ContainsKey("login_pd"))
+                    {
+                        if (options["login_id"].ToString() != "")
+                        {
+                            CredentialCache mycache = new CredentialCache();
+                            Uri uri = new Uri(URL);
+                            mycache.Add(uri, "Basic", new NetworkCredential(options["login_id"].ToString(), options["login_pd"].ToString()));
+                            //加入另一種 Digest 驗證
+                            mycache.Add(
+                              new Uri(uri.GetLeftPart(UriPartial.Authority)), // request url's host
+                              "Digest",  // authentication type 
+                              new NetworkCredential(options["login_id"].ToString(), options["login_pd"].ToString()) // credentials 
+                            );
+                            request.Credentials = mycache;
+                        }
+                    }
+                    if (options.ContainsKey("timeout"))
+                    {
+                        request.Timeout = Convert.ToInt32(options["timeout"]);
+                    }
+                    if (options.ContainsKey("cookie"))
+                    {
+                        //request.Headers.Add("Cookie", options["cookie"].ToString());
+                        //request.CookieContainer.Add( = options["cookie"].ToString();      
+                        request.CookieContainer = new CookieContainer();
+                        Uri uri = new Uri(URL);
+                        request.CookieContainer.SetCookies(uri, options["cookie"].ToString());
+                    }
+                    if (options.ContainsKey("user_agent"))
+                    {
+                        request.UserAgent = options["user_agent"].ToString();
+                    }
+                    if (options.ContainsKey("headers") && options["headers"] != null)
+                    {
+                        foreach (string k in ((ConcurrentDictionary<string, string>)options["headers"]).Keys)
+                        {
+                            if (k.ToUpper().Replace("-", "") == "CONTENTTYPE")
+                            {
+                                request.ContentType = ((ConcurrentDictionary<string, string>)options["headers"])[k];
+                                continue;
+                            }
+                            request.Headers[k] = ((ConcurrentDictionary<string, string>)options["headers"])[k];
+                        }
+                    }
+                }
+                request.Proxy = null;
+
+
+
+
+                HttpWebResponse response = null;
+                if (postData == "" && (upfiles == null || upfiles.Count == 0))
+                {
+                    //GET         
+                    request.Method = "GET";
+                    response = (HttpWebResponse)request.GetResponse();
+                    Stream stream = response.GetResponseStream();
+                    output["data"] = ReadStream(stream, 32765);
+                    stream.Close();
+                }
+                else if (upfiles == null || upfiles.Count == 0) //post only
+                {
+                    request.Method = "POST";
+                    //Post
+                    byte[] data = Encoding.UTF8.GetBytes(postData);
+                    if (request.ContentType == null)
+                    {
+                        request.ContentType = "application/x-www-form-urlencoded";
+                    }
+                    request.ContentLength = data.Length;
+                    using (Stream stream = request.GetRequestStream())
+                    {
+                        stream.Write(data, 0, data.Length);
+                        stream.Close();
+                    }
+                    Array.Clear(data, 0, data.Length);
+                    data = null;
+                    response = (HttpWebResponse)request.GetResponse();
+                    Stream streamD = response.GetResponseStream();
+                    output["data"] = ReadStream(streamD, 32767);
+                    streamD.Close();
+                }
+                else if (upfiles.Count() != 0)
+                {
+                    //Post
+
+
+                    string boundary = "----------------------------" + DateTime.Now.Ticks.ToString("x");
+                    // The first boundary
+                    byte[] firstBoundaryBytes = System.Text.Encoding.UTF8.GetBytes("--" + boundary + "\r\n");
+                    byte[] boundaryBytes = System.Text.Encoding.UTF8.GetBytes("\r\n--" + boundary + "\r\n");
+                    // The last boundary
+                    byte[] trailer = System.Text.Encoding.UTF8.GetBytes("\r\n--" + boundary + "--\r\n");
+
+                    request.Method = "POST";
+                    request.ContentType = "multipart/form-data; boundary=" + boundary + "";
+
+
+
+                    // Get request stream
+                    Stream requestStream = request.GetRequestStream();
+
+
+
+
+                    /*
+                     Content-Disposition: form-data; name="gg"\r\n\r\n
+        GG
+                    */
+
+                    if (postData != "")
+                    {
+                        var m = explode("&", postData);
+                        for (int i = 0, max_i = m.Count(); i < max_i; i++)
+                        {
+                            var d = explode("=", m[i]);
+                            if (d.Length < 2) continue;
+                            // Write item to stream
+                            string key = post_decode_string(d[0]);
+                            string keyvalue = post_decode_string(d[1]);
+                            byte[] formItemBytes = s2b(string.Format("Content-Disposition: form-data; name={0};\r\n\r\n{1}", key, keyvalue));
+                            if (firstBoundaryBytes != null)
+                            {
+                                requestStream.Write(firstBoundaryBytes, 0, firstBoundaryBytes.Length);
+                                Array.Clear(firstBoundaryBytes, 0, firstBoundaryBytes.Length);
+                                firstBoundaryBytes = null;
+                            }
+                            else
+                            {
+                                requestStream.Write(boundaryBytes, 0, boundaryBytes.Length);
+                            }
+                            requestStream.Write(formItemBytes, 0, formItemBytes.Length);
+                            Array.Clear(formItemBytes, 0, formItemBytes.Length);
+                            formItemBytes = null;
+                        }
+                    }
+
+                    if (upfiles != null && upfiles.Count > 0)
+                    {
+                        foreach (Dictionary<string, string> d in upfiles)
+                        {
+                            foreach (string keyname in d.Keys)
+                            {
+                                //keyname = string.Join("", d.Keys);
+                                string filename = post_decode_string(d[keyname]);
+                                string bn = basename(filename);
+                                string dekeyname = post_decode_string(keyname);
+                                if (File.Exists(filename))
+                                {
+                                    if (firstBoundaryBytes != null)
+                                    {
+                                        requestStream.Write(firstBoundaryBytes, 0, firstBoundaryBytes.Length);
+                                        Array.Clear(firstBoundaryBytes, 0, firstBoundaryBytes.Length);
+                                        firstBoundaryBytes = null;
+                                    }
+                                    else
+                                    {
+                                        requestStream.Write(boundaryBytes, 0, boundaryBytes.Length);
+                                    }
+
+
+                                    byte[] formItemBytes = s2b(string.Format("Content-Disposition: form-data; name=\"{0}\"; filename=\"{1}\"\r\nContent-Type: application/octet-stream\r\n\r\n", dekeyname, filename));
+
+                                    requestStream.Write(formItemBytes, 0, formItemBytes.Length);
+                                    Array.Clear(formItemBytes, 0, formItemBytes.Length);
+                                    byte[] buffer = file_get_contents(filename);
+                                    requestStream.Write(buffer, 0, buffer.Length);
+                                    Array.Clear(buffer, 0, buffer.Length);
+                                    buffer = null;
+                                }
+                            }
+                        }
+                    }
+
+                    // Write trailer and close stream
+                    requestStream.Write(trailer, 0, trailer.Length);
+                    requestStream.Close();
+
+                    Array.Clear(boundaryBytes, 0, boundaryBytes.Length);
+                    Array.Clear(trailer, 0, trailer.Length);
+                    boundaryBytes = null;
+                    trailer = null;
+
+                    response = (HttpWebResponse)request.GetResponse();
+                    Stream streamD = response.GetResponseStream();
+                    output["data"] = ReadStream(streamD, 32767);
+                    streamD.Close();
+                }
+                output["headers"] = new Dictionary<string, string>();
+                foreach (var k in response.Headers)
+                {
+                    ((Dictionary<string, string>)output["headers"])[k.ToString()] = response.Headers[k.ToString()].ToString();
+                }
+                output["realCookie"] = response.Headers[HttpResponseHeader.SetCookie];
+                response.Close();
+                output["reason"] = "";
+                output["status"] = "OK";
+                return output;
+            }
+            catch (Exception ex)
+            {
+                output["status"] = "NO";
+                output["data"] = new byte[0];
+                output["reason"] = ex.Message + "\n\r" + ex.StackTrace;
+                return output;
+            }
+        }
+
+    }
+    public class myZip : IDisposable
+    {
+        private FileStream zipToOpen;
+        private ZipArchive archive;
+        private string _zipFile = "";
+        private List<Dictionary<string, object>> zipQueue = new List<Dictionary<string, object>>();
+        private Timer addFileTimer;
+        private bool isFlushing = false;
+        public myZip(string zipFile)
+        {
+            zipQueue = new List<Dictionary<string, object>>();
+            _zipFile = zipFile;
+            zipToOpen = new FileStream(_zipFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+            archive = new ZipArchive(zipToOpen, ZipArchiveMode.Update, true);
+
+            // 定期每 5 秒強制刷新一次
+            addFileTimer = new Timer(addCallback, null, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
+
+            // 設置 Console 取消處理，捕獲中斷信號（Ctrl+C）
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                e.Cancel = true; // 取消退出
+                Dispose(); // 清理資源
+                Console.WriteLine("中斷操作，資源已釋放");
+            };
+        }
+        private void addCallback(object state)
+        {
+            // 從 zipQueue 取出資料，並加入到 ZIP 檔案中
+            if (isFlushing)
+            {
+                return;
+            }
+            int count = zipQueue.Count;
+            for (int i = 0; i < count; i++)
+            {
+                var item = zipQueue[i];
+                if (isFlushing)
+                {
+                    return;
+                }
+                AddFile((byte[])item["fromByte"], item["toInSideZipfile"].ToString());
+            }
+            // 移除 0 ~ count
+            zipQueue.RemoveRange(0, count);
+            // Flush            
+            Flush();
+        }
+        public void AddByteToQueue(byte[] fromByte, string toInSideZipfile)
+        {
+            Dictionary<string, object> zipItem = new Dictionary<string, object>();
+            zipItem["fromByte"] = fromByte;
+            zipItem["toInSideZipfile"] = toInSideZipfile;
+            zipQueue.Add(zipItem);
+        }
+
+        public bool IsFile(string toInSideZipfile)
+        {
+            return archive.GetEntry(toInSideZipfile) != null;
+        }
+        public bool AddFile(byte[] frombytearray, string toInSideZipfile, CompressionLevel compressionLevel = CompressionLevel.NoCompression)
+        {
+            try
+            {
+                // 檢查 ZIP 內是否已有相同檔案，若有則刪除
+                var existingEntry = archive.GetEntry(toInSideZipfile);
+                existingEntry?.Delete();
+
+                // 新增檔案
+                var entry = archive.CreateEntry(toInSideZipfile, compressionLevel);
+                using (var stream = entry.Open())
+                {
+                    stream.Write(frombytearray, 0, frombytearray.Length);
+                }
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public bool AddFile(string fromFile, string toInSideZipfile, CompressionLevel compressionLevel = CompressionLevel.NoCompression)
+        {
+            try
+            {
+                // 檢查 ZIP 內是否已有相同檔案，若有則刪除
+                var existingEntry = archive.GetEntry(toInSideZipfile);
+                existingEntry?.Delete();
+
+                // 新增檔案
+                archive.CreateEntryFromFile(fromFile, toInSideZipfile, compressionLevel);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public bool DelFile(string toInSideZipfile)
+        {
+            try
+            {
+                // 檢查 ZIP 內是否已有相同檔案，若有則刪除
+                var existingEntry = archive.GetEntry(toInSideZipfile);
+                existingEntry?.Delete();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        public void Flush()
+        {
+            isFlushing = true;
+            zipToOpen.Flush();
+            archive?.Dispose();
+            zipToOpen?.Dispose();
+            zipToOpen = new FileStream(_zipFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+            archive = new ZipArchive(zipToOpen, ZipArchiveMode.Update, true);
+            isFlushing = false;
+        }
+        public void Dispose()
+        {
+            // 釋放資源
+            addFileTimer?.Dispose();
+            archive?.Dispose();
+            zipToOpen?.Dispose();
         }
     }
 }
