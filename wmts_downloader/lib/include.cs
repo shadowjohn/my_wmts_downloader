@@ -776,7 +776,16 @@ namespace utility
         {
             Console.WriteLine(data);
         }
-        public Dictionary<string, double> fix_LT_RB(Dictionary<string, double> data)
+        public Dictionary<string, double> fix_LT_RB_3826(Dictionary<string, double> data)
+        {
+            Dictionary<string, double> output = new Dictionary<string, double>();
+            output["LT_X"] = min(data["LT_X"], data["RB_X"]);
+            output["RB_X"] = max(data["LT_X"], data["RB_X"]);
+            output["LT_Y"] = min(data["LT_Y"], data["RB_Y"]);
+            output["RB_Y"] = max(data["LT_Y"], data["RB_Y"]);
+            return output;
+        }
+        public Dictionary<string, double> fix_LT_RB_4326(Dictionary<string, double> data)
         {
             Dictionary<string, double> output = new Dictionary<string, double>();
             output["LT_X"] = min(data["LT_X"], data["RB_X"]);
@@ -799,6 +808,14 @@ namespace utility
         }
         public Dictionary<string, double> p4326_to_p3826(Dictionary<string, double> data)
         {
+            if (data["RB_Y"] > data["LT_Y"])
+            {
+                // 填反
+                double tmp = data["RB_Y"];
+                data["RB_Y"] = data["LT_Y"];
+                data["LT_Y"] = tmp;
+            }
+
             Dictionary<string, double> output = new Dictionary<string, double>();
             ProjNet.CoordinateSystems.Transformations.ICoordinateTransformation pct = CoordinateTransformation.CoordinateTransformation.TransformCoordinate("4326", "3826");
             double[] maxResult = pct.MathTransform.Transform(new double[] { data["LT_X"], data["LT_Y"] });
@@ -807,6 +824,7 @@ namespace utility
             double[] minResult = pct.MathTransform.Transform(new double[] { data["RB_X"], data["RB_Y"] });
             output["RB_X"] = minResult[0];
             output["RB_Y"] = minResult[1];
+
             return output;
         }
         public PointF[] p3826_to_pointf(Dictionary<string, double> data)
@@ -858,18 +876,27 @@ namespace utility
         {
             const double pi = Math.PI;
 
+            // 限制經度範圍，以符合 Web Mercator
+            lon = Math.Max(-179.9, Math.Min(179.9, lon));
+
             // 限制緯度範圍，以符合 Web Mercator
             lat = Math.Max(-85.05112878, Math.Min(85.05112878, lat));
 
             int ZoomLevelTiles = 1 << Zoom;  // 等同於 Math.Pow(2, Zoom)，但位元運算效能較佳
             int x = (int)Math.Floor((lon + 180.0) / 360.0 * ZoomLevelTiles);
-            int y = (int)Math.Floor((1.0 - Math.Log(Math.Tan(lat * pi / 180.0) + 1.0 / Math.Cos(lat * pi / 180.0)) / pi) / 2.0 * ZoomLevelTiles);
+            double latRad = lat * pi / 180.0;
+            double mercN = Math.Log(Math.Tan(latRad) + 1.0 / Math.Cos(latRad));
+            int y = (int)Math.Floor((1.0 - mercN / pi) / 2.0 * ZoomLevelTiles);
+
+            // 確保 y 在 [0, ZoomLevelTiles - 1] 內
+            y = Math.Max(0, Math.Min(ZoomLevelTiles - 1, y));
+
             return new Dictionary<string, int>
-                {
-                    { "Zoom", Zoom },
-                    { "X", x },
-                    { "Y", y }
-                };
+            {
+                { "Zoom", Zoom },
+                { "X", x },
+                { "Y", y }
+            };
         }
         public Dictionary<string, int> p4326_to_ptile(int Zoom, Dictionary<string, double> p4326)
         {
@@ -1072,6 +1099,18 @@ namespace utility
                 }
             }
             return dt;
+        }
+        public string[] glob(string path)
+        {
+            //string[] test = my.glob("c:\\tmp");
+            //my.echo(my.pre_print_r(test));
+            return Directory.GetFiles(path);
+        }
+        public string[] glob(string path, string patten)
+        {
+            //string[] test = my.glob("c:\\tmp");
+            //my.echo(my.pre_print_r(test));
+            return Directory.GetFiles(path, patten);
         }
         public int sqlitePDO_insertSQL(Microsoft.Data.Sqlite.SqliteConnection pdo, string table, Dictionary<string, object> data)
         {

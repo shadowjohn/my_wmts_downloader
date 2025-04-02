@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.Net;
+using System.Threading.Tasks;
 using utility;
 using wmts_downloader.App_Code;
 
@@ -9,7 +10,7 @@ namespace wmts_downloader
 {
     public class Program
     {
-        public myinclude my = new myinclude();        
+        public myinclude my = new myinclude();
         public App app = null;
         //WMTS 網址
         public string URL = "https://c.tile.openstreetmap.org/${z}/${x}/${y}.png";
@@ -43,7 +44,7 @@ namespace wmts_downloader
 
         //zip 物件
         public myZip zip = null;
-        
+
         //sqlite 物件
         public Microsoft.Data.Sqlite.SqliteConnection pdodb = null;
 
@@ -64,22 +65,33 @@ Usage :
   wmts_downloader.exe -url ""https://c.tile.openstreetmap.org/${z}/${x}/${y}.png"" -ltx ""118.396"" -lty ""25.770"" -rbx ""122.286"" -rby ""21.732"" -sz 0 -ez 15 -f SQLITE -o ""C:\\temp\\osm.db""
 ";
 
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072;
-            Program F1 = new Program();                        
+            Program F1 = new Program();
             //preset
             F1.p3826["LT_X"] = 289115.13;
             F1.p3826["LT_Y"] = 2602287.44;
             F1.p3826["RB_X"] = 291660.12;
             F1.p3826["RB_Y"] = 2605063.03;
             F1.app = new App(F1);
+
             F1.app.input_vertify(args); //處理輸入參數
+
             //修正四角位置
-            F1.p3826 = F1.my.fix_LT_RB(F1.p3826);
+            F1.p3826 = F1.my.fix_LT_RB_3826(F1.p3826);
+
             //定義 4326
-            F1.p4326 = F1.my.p3826_to_p4326(F1.p3826);
+            //4326 已在就不轉了
+            if (!F1.p4326.ContainsKey("LT_X"))
+            {
+                F1.p4326 = F1.my.p3826_to_p4326(F1.p3826);
+            }
+            F1.p4326 = F1.my.fix_LT_RB_4326(F1.p4326);
+            // 印出來看看
+            F1.my.echo("p4326：" + F1.my.json_format(F1.my.json_encode(F1.p4326)));
+
 
             //取得 START_LEVEL ~ END_LEVEL 階抓取的 XYZ 範圍
             F1.total_pics = 0;
@@ -111,10 +123,10 @@ Usage :
             //F1.my.echo("XYZ：" + F1.my.json_encode(F1.ptile));
             //F1.my.echo("X：" + F1.how_many_x);
             //F1.my.echo("Y：" + F1.how_many_y);
-            F1.my.echo(F1.my.json_encode(F1.how_many_z));
+            F1.my.echo(F1.my.json_format(F1.my.json_encode(F1.how_many_z)));
             F1.my.echo("共幾張：" + F1.total_pics);
             F1.my.echo("");
-            
+
             // 看是什麼類型
             switch (F1.FORMAT)
             {
@@ -135,10 +147,10 @@ Usage :
             }
 
             //開始下載            
-            if (!F1.app.downloadTiles())
+            await F1.app.downloadTiles();
             {
-                F1.my.echo("執行失敗...");
-                F1.my.exit();
+                //F1.my.echo("執行失敗...");
+                //F1.my.exit();
             }
             F1.my.echo("輸出檔案：" + F1.OUTPUT_PATH);
             F1.my.echo("工作完成...");
